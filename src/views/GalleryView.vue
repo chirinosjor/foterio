@@ -7,6 +7,14 @@ const collections = ref<Collection[]>([]);
 const loading = ref(true);
 const errorMessage = ref<string | null>(null);
 
+const imageAlt = (collection: Collection) => {
+  if (collection.coverUrl) {
+    return collection.name;
+  } else {
+    return undefined;
+  }
+};
+
 onMounted(async () => {
   const { data, error } = await supabase.from("collection").select("*");
 
@@ -27,17 +35,21 @@ onMounted(async () => {
     <div v-else-if="errorMessage" class="text-red-500">
       {{ errorMessage }}
     </div>
-    <ul v-else>
+    <ul v-else class="flex flex-wrap gap-6">
       <li
         v-for="item in collections"
         :key="item.id"
-        class="border border-gray-700 p-3 mb-2 rounded"
+        class="w-full sm:w-1/2 md:w-1/3 lg:w-1/4"
       >
         <div
           class="bg-neutral-primary-soft block max-w-sm border border-default rounded-base shadow-xs"
         >
           <a href="#">
-            <img class="rounded-t-base" src="" alt="" />
+            <img
+              class="rounded-t-base mx-auto p-2"
+              :src="item.coverUrl"
+              :alt="imageAlt(item)"
+            />
           </a>
           <div class="p-6 text-center">
             <a href="#">
