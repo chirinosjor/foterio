@@ -169,22 +169,50 @@ const downloadSelected = async () => {
   saveAs(content, "photos.zip");
 };
 
-// Delete selected
+// Delete selected photos
 const deleteSelected = async () => {
   if (!confirm("Delete selected photos permanently?")) return;
 
   const ids = selectedPhotos.value.map((p) => p.id);
+  const keys = selectedPhotos.value.map((p) => p.s3_key); // Make sure this matches your DB field
 
-  const { error } = await supabase
+  console.log("IDs to delete:", ids);
+  console.log("S3 keys to delete:", keys);
+
+  // 1) Delete from DB
+  const { error: dbError } = await supabase
     .from("collection_photo")
     .delete()
     .in("id", ids);
 
-  if (error) {
-    alert("Error deleting: " + error.message);
+  if (dbError) {
+    console.error("DB deletion error:", dbError);
+    alert("Error deleting from database: " + dbError.message);
     return;
+  } else {
+    console.log("DB deletion successful for IDs:", ids);
   }
 
+  // 2) Delete from S3 via Edge Function
+  for (const key of keys) {
+    try {
+      console.log("Calling Edge Function for key:", key);
+      const { data, error: fnError } = await supabase.functions.invoke(
+        "delete-from-s3",
+        { body: { key } }
+      );
+
+      if (fnError) {
+        console.error("Edge Function error for key", key, fnError);
+      } else {
+        console.log("Edge Function response for key", key, data);
+      }
+    } catch (err) {
+      console.error("Exception calling Edge Function for key", key, err);
+    }
+  }
+
+  // 3) Update UI
   collection.value.collection_photo = collection.value.collection_photo.filter(
     (p: CollectionPhoto) => !ids.includes(p.id)
   );

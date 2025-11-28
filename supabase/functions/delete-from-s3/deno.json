@@ -1,0 +1,17 @@
+{
+  "imports": {},
+  "env": [
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_URL",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_BUCKET_NAME",
+    "AWS_REGION"
+  ],
+  "cors": {
+    "allowed_origins": ["http://localhost:5173", "*"],
+    "allowed_headers": ["*"],
+    "allowed_methods": ["POST", "OPTIONS"],
+    "max_age": 86400
+  }
+}
