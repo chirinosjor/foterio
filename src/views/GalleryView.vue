@@ -41,26 +41,28 @@ onMounted(async () => {
         :key="item.id"
         class="w-full sm:w-1/2 md:w-1/3 lg:w-1/4"
       >
-        <div
+        <RouterLink
+          :to="`gallery/${item.id}`"
           class="bg-neutral-primary-soft block max-w-sm border border-default rounded-base shadow-xs"
         >
-          <a href="#">
-            <img
-              class="rounded-t-base mx-auto p-2"
-              :src="item.coverUrl"
-              :alt="imageAlt(item)"
-            />
-          </a>
-          <div class="p-6 text-center">
-            <a href="#">
-              <h5
-                class="mt-3 mb-6 text-2xl font-semibold tracking-tight text-heading"
-              >
-                {{ item.name }}
-              </h5>
-            </a>
+          <img
+            class="rounded-t-base mx-auto p-2"
+            :src="item.coverUrl"
+            :alt="imageAlt(item)"
+          />
+
+          <div class="mb-6 p-4 border rounded bg-white shadow-sm">
+            <h1 class="text-gray-700 text-2xl font-bold mb-2">
+              {{ item.name }}
+            </h1>
+
+            <p class="text-gray-700 mb-2">Slug: {{ item.slug }}</p>
+
+            <p class="text-sm text-gray-500">
+              Created: {{ new Date(item.created_at).toLocaleDateString() }}
+            </p>
           </div>
-        </div>
+        </RouterLink>
       </li>
     </ul>
   </div>

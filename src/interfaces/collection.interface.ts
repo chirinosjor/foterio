@@ -3,4 +3,13 @@ export interface Collection {
   name: string;
   slug: string;
   coverUrl: string;
+  created_at: string;
+}
+
+export interface CollectionPhoto {
+  id: string;
+  collection_id: number;
+  storage_path: string;
+  caption?: string;
+  created_at: string;
 }
