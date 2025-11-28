@@ -2,18 +2,11 @@
 import { ref, onMounted } from "vue";
 import { supabase } from "../lib/supabase";
 import type { Collection } from "../interfaces/collection.interface";
+import { imageAlt, imgSrc } from "../utils/image";
 
 const collections = ref<Collection[]>([]);
 const loading = ref(true);
 const errorMessage = ref<string | null>(null);
-
-const imageAlt = (collection: Collection) => {
-  if (collection.coverUrl) {
-    return collection.name;
-  } else {
-    return undefined;
-  }
-};
 
 onMounted(async () => {
   const { data, error } = await supabase.from("collection").select("*");
@@ -30,7 +23,7 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1 class="text-2xl font-bold mb-4">Gallery</h1>
+    <h1 class="text-3xl font-bold mb-4 p-2">Gallery</h1>
     <div v-if="loading" class="text-gray-300">Loading...</div>
     <div v-else-if="errorMessage" class="text-red-500">
       {{ errorMessage }}
@@ -43,21 +36,18 @@ onMounted(async () => {
       >
         <RouterLink
           :to="`gallery/${item.id}`"
-          class="bg-neutral-primary-soft block max-w-sm border border-default rounded-base shadow-xs"
+          class="bg-neutral-primary-soft block max-w-sm border border-default bg-white rounded-xl shadow-xs h-full"
         >
           <img
             class="rounded-t-base mx-auto p-2"
-            :src="item.coverUrl"
+            :src="imgSrc(item)"
             :alt="imageAlt(item)"
           />
-
           <div class="mb-6 p-4 border rounded bg-white shadow-sm">
             <h1 class="text-gray-700 text-2xl font-bold mb-2">
               {{ item.name }}
             </h1>
-
             <p class="text-gray-700 mb-2">Slug: {{ item.slug }}</p>
-
             <p class="text-sm text-gray-500">
               Created: {{ new Date(item.created_at).toLocaleDateString() }}
             </p>

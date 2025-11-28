@@ -12,4 +12,5 @@ export interface CollectionPhoto {
   storage_path: string;
   caption?: string;
   created_at: string;
+  s3_key: string;
 }
