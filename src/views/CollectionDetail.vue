@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
           <div
             v-for="photo in collectionPhotos"
             :key="photo.id"
-            class="relative border rounded overflow-hidden bg-white shadow-sm"
+            class="relative border rounded overflow-hidden bg-white shadow-sm w-full aspect-square"
           >
             <input
               type="checkbox"
@@ -178,7 +178,8 @@ onBeforeUnmount(() => {
 
             <img
               :src="photo.public_url"
-              style="max-width: 200px; max-height: 200px"
+              alt="Thumbnail"
+              class="w-full h-full object-cover"
             />
           </div>
         </div>

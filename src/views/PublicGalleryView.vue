@@ -2,6 +2,8 @@
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { supabase } from "../lib/supabase";
+import { saveAs } from "file-saver";
+import JSZip from "jszip";
 
 const route = useRoute();
 const collectionId = route.params.id as string;
@@ -44,17 +46,24 @@ onMounted(async () => {
 // Bulk Download
 // -----------------------------
 const downloadSelected = async () => {
-  if (!selectedPhotos.value.length) return;
-
-  for (const photo of selectedPhotos.value) {
-    const link = document.createElement("a");
-    link.href = photo.public_url;
-    link.download = photo.public_url.split("/").pop() || "photo.jpg";
-    link.click();
+  if (selectedPhotos.value.length === 1) {
+    const photo = selectedPhotos.value[0];
+    const response = await fetch(photo.public_url || photo.storage_path);
+    const blob = await response.blob();
+    saveAs(blob, `${photo.id}.jpg`);
+    return;
   }
 
-  // clear selection after download
-  selectedPhotos.value = [];
+  const zip = new JSZip();
+
+  for (const photo of selectedPhotos.value) {
+    const response = await fetch(photo.public_url || photo.storage_path);
+    const blob = await response.blob();
+    zip.file(`${photo.id}.jpg`, blob);
+  }
+
+  const content = await zip.generateAsync({ type: "blob" });
+  saveAs(content, "photos.zip");
 };
 
 // -----------------------------

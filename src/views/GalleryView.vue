@@ -7,6 +7,7 @@ import { imageAlt, imgSrc } from "../utils/image";
 const collections = ref<Collection[]>([]);
 const loading = ref(true);
 const errorMessage = ref<string | null>(null);
+const userId = ref<string | null>(null);
 
 const copyPublicLink = (id: number) => {
   const link = `${window.location.origin}/public-gallery/${id}`;
@@ -16,24 +17,70 @@ const copyPublicLink = (id: number) => {
     .catch((err) => console.error(err));
 };
 
-onMounted(async () => {
-  const { data, error } = await supabase.from("collection").select("*");
+const fetchCollections = async () => {
+  if (!userId.value) return;
+  loading.value = true;
+  const { data, error } = await supabase
+    .from("collection")
+    .select("*")
+    .eq("user_id", userId.value);
 
   if (error) {
     errorMessage.value = error.message;
   } else {
     collections.value = data;
   }
-
   loading.value = false;
+};
+
+const createNewGallery = async () => {
+  if (!userId.value) return;
+
+  const name = prompt("Enter the name of your new gallery:");
+  if (!name) return;
+
+  const slug = name.toLowerCase().replace(/\s+/g, "-"); // simple slug generator
+  const { error } = await supabase.from("collection").insert([
+    {
+      name,
+      slug,
+      user_id: userId.value,
+      created_at: new Date().toISOString(),
+    },
+  ]);
+
+  if (error) {
+    alert("Error creating gallery: " + error.message);
+  } else {
+    alert("Gallery created!");
+    fetchCollections(); // refresh the list
+  }
+};
+
+onMounted(async () => {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) {
+    errorMessage.value = "User not logged in";
+    loading.value = false;
+    return;
+  }
+
+  userId.value = user.id;
+  fetchCollections();
 });
 </script>
 
 <template>
   <div class="p-4">
-    <h1 class="text-3xl sm:text-4xl font-extrabold mb-6 text-gray-800">
-      Gallery
-    </h1>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-800">Gallery</h1>
+      <button
+        @click="createNewGallery"
+        class="px-4 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition-colors duration-200"
+      >
+        + New Gallery
+      </button>
+    </div>
 
     <div v-if="loading" class="text-gray-400 text-lg">Loading...</div>
 
