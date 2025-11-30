@@ -8,6 +8,14 @@ const collections = ref<Collection[]>([]);
 const loading = ref(true);
 const errorMessage = ref<string | null>(null);
 
+const copyPublicLink = (id: number) => {
+  const link = `${window.location.origin}/public-gallery/${id}`;
+  navigator.clipboard
+    .writeText(link)
+    .then(() => alert("Public gallery link copied!"))
+    .catch((err) => console.error(err));
+};
+
 onMounted(async () => {
   const { data, error } = await supabase.from("collection").select("*");
 
@@ -22,37 +30,52 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <h1 class="text-3xl font-bold mb-4 p-2">Gallery</h1>
-    <div v-if="loading" class="text-gray-300">Loading...</div>
-    <div v-else-if="errorMessage" class="text-red-500">
+  <div class="p-4">
+    <h1 class="text-3xl sm:text-4xl font-extrabold mb-6 text-gray-800">
+      Gallery
+    </h1>
+
+    <div v-if="loading" class="text-gray-400 text-lg">Loading...</div>
+
+    <div v-else-if="errorMessage" class="text-red-500 text-lg">
       {{ errorMessage }}
     </div>
-    <ul v-else class="flex flex-wrap gap-6">
-      <li
-        v-for="item in collections"
-        :key="item.id"
-        class="w-full sm:w-1/2 md:w-1/3 lg:w-1/4"
-      >
-        <RouterLink
-          :to="`gallery/${item.id}`"
-          class="bg-neutral-primary-soft block max-w-sm border border-default bg-white rounded-xl shadow-xs h-full"
+
+    <ul
+      v-else
+      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+    >
+      <li v-for="item in collections" :key="item.id" class="group">
+        <div
+          class="flex flex-col bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full"
         >
-          <img
-            class="rounded-t-base mx-auto p-2"
-            :src="imgSrc(item)"
-            :alt="imageAlt(item)"
-          />
-          <div class="mb-6 p-4 border rounded bg-white shadow-sm">
-            <h1 class="text-gray-700 text-2xl font-bold mb-2">
-              {{ item.name }}
-            </h1>
-            <p class="text-gray-700 mb-2">Slug: {{ item.slug }}</p>
-            <p class="text-sm text-gray-500">
-              Created: {{ new Date(item.created_at).toLocaleDateString() }}
-            </p>
-          </div>
-        </RouterLink>
+          <RouterLink :to="`gallery/${item.id}`" class="flex flex-col grow">
+            <div class="overflow-hidden">
+              <img
+                class="w-full h-48 object-cover transform group-hover:scale-105 transition-transform duration-300"
+                :src="imgSrc(item)"
+                :alt="imageAlt(item)"
+              />
+            </div>
+            <div class="p-4 flex flex-col grow">
+              <h2
+                class="text-lg sm:text-xl font-semibold text-gray-800 mb-1 truncate"
+              >
+                {{ item.name }}
+              </h2>
+              <p class="text-gray-600 mb-2 truncate">Slug: {{ item.slug }}</p>
+              <p class="text-sm text-gray-400 mt-auto">
+                Created: {{ new Date(item.created_at).toLocaleDateString() }}
+              </p>
+            </div>
+          </RouterLink>
+          <button
+            @click.stop="copyPublicLink(item.id)"
+            class="w-full px-4 py-2 bg-purple-600 text-white font-medium text-sm hover:bg-purple-700 transition-colors duration-200"
+          >
+            Share Public Link
+          </button>
+        </div>
       </li>
     </ul>
   </div>

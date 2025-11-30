@@ -7,10 +7,12 @@ import { supabase } from "../lib/supabase";
 import HomeView from "../views/HomeView.vue";
 import DashboardLayout from "../layouts/DashboardLayout.vue";
 import CollectionDetail from "../views/CollectionDetail.vue";
+import PublicGalleryView from "../views/PublicGalleryView.vue";
 
 const routes = [
   { path: "/login", component: LoginView },
   { path: "/registro", component: RegisterView },
+  { path: "/public-gallery/:id", name: "PublicGallery", component: PublicGalleryView },
 
   {
     path: "/",
@@ -20,6 +22,7 @@ const routes = [
       { path: "dashboard", component: HomeView },
       { path: "gallery", component: GalleryView },
       { path: "gallery/:id", component: CollectionDetail },
+
       { path: "", redirect: "/dashboard" },
     ],
   },
