@@ -3,14 +3,21 @@ import { useRoute } from "vue-router";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import { supabase } from "../lib/supabase";
-import type { CollectionPhoto } from "../interfaces/collection.interface";
-
+import type { Collection, CollectionPhoto } from "../interfaces/collection.interface";
 
 function useCollectionDetail() {
   const route = useRoute();
   const id = route.params.id;
 
-  const collection = ref<any>(null);
+  const collection = ref<Collection>({
+    coverUrl: '',
+    created_at: '',
+    id: 0,
+    name: '',
+    slug: ''
+  });
+
+  const collectionPhotos = ref<CollectionPhoto[]>([]);
   const loading = ref(true);
   const errorMessage = ref<string | null>(null);
   const selectedPhotos = ref<any[]>([]);
@@ -20,88 +27,80 @@ function useCollectionDetail() {
     modalImage.value = url;
     document.body.style.overflow = "hidden";
   };
+
   const closeModal = () => {
     modalImage.value = null;
     document.body.style.overflow = "";
   };
 
-  // Clear selection
   const clearSelection = () => {
     selectedPhotos.value = [];
   };
 
-  // Download selected images
   const downloadSelected = async () => {
     if (selectedPhotos.value.length === 1) {
-      // Single file → download directly
-      saveAs(selectedPhotos.value[0].storage_path);
+      saveAs(selectedPhotos.value[0].public_url || selectedPhotos.value[0].storage_path);
       return;
     }
 
-    // Multiple → generate ZIP
     const zip = new JSZip();
 
     for (const photo of selectedPhotos.value) {
-      const response = await fetch(photo.storage_path);
+      const response = await fetch(photo.public_url || photo.storage_path);
       const blob = await response.blob();
-      const filename = `${photo.id}.jpg`;
-
-      zip.file(filename, blob);
+      zip.file(`${photo.id}.jpg`, blob);
     }
 
     const content = await zip.generateAsync({ type: "blob" });
     saveAs(content, "photos.zip");
   };
 
-  // Delete selected photos
   const deleteSelected = async () => {
+    if (!selectedPhotos.value.length) return;
+
     if (!confirm("Delete selected photos permanently?")) return;
+    if (!collectionPhotos.value) return;
 
-    const ids = selectedPhotos.value.map((p: CollectionPhoto) => p.id);
-    const keys = selectedPhotos.value.map((p: CollectionPhoto) => p.s3_key);
+    try {
+      // 1️⃣ Collect IDs for DB and storage paths for bucket
+      const ids = selectedPhotos.value.map(p => p.id);
+      const paths = selectedPhotos.value.map(p =>
+        p.storage_path.replace(/^foterio\//, "") // remove bucket prefix
+      );
 
-    // 1) Delete from DB
-    const { error: dbError } = await supabase
-      .from("collection_photo")
-      .delete()
-      .in("id", ids);
+      // 2️⃣ Delete from database
+      const { error: dbError } = await supabase
+        .from("collection_photo") // ✅ correct table
+        .delete()
+        .in("id", ids);
 
-    if (dbError) {
-      console.error("DB deletion error:", dbError);
-      alert("Error deleting from database: " + dbError.message);
-      return;
-    } else {
-      console.log("DB deletion successful for IDs:", ids);
-    }
-
-    // 2) Delete from S3 via Edge Function
-    for (const key of keys) {
-      try {
-        console.log("Calling Edge Function for key:", key);
-        const { data, error: fnError } = await supabase.functions.invoke(
-          "delete-from-s3",
-          { body: { key } }
-        );
-
-        if (fnError) {
-          console.error("Edge Function error for key", key, fnError);
-        } else {
-          console.log("Edge Function response for key", key, data);
-        }
-      } catch (err) {
-        console.error("Exception calling Edge Function for key", key, err);
+      if (dbError) {
+        alert("Error deleting from DB: " + dbError.message);
+        return;
       }
+
+      // 3️⃣ Delete files from storage
+      const { data, error: storageError } = await supabase.storage
+        .from("foterio") // bucket name
+        .remove(paths);
+
+      if (storageError) console.error("Error deleting from storage:", storageError);
+
+      console.log('data', data);
+
+      // 4️⃣ Remove deleted photos from reactive array
+      collectionPhotos.value = collectionPhotos.value.filter(
+        p => !ids.includes(p.id)
+      );
+
+      // 5️⃣ Clear selection
+      selectedPhotos.value = [];
+    } catch (err) {
+      console.error("Failed deleting photos:", err);
     }
-
-    // 3) Update UI
-    collection.value.collection_photo = collection.value.collection_photo.filter(
-      (p: CollectionPhoto) => !ids.includes(p.id)
-    );
-
-    clearSelection();
   };
 
-  // Close on ESC
+
   const handleKeydown = (e: KeyboardEvent) => {
     if (e.key === "Escape") closeModal();
   };
@@ -115,10 +114,10 @@ function useCollectionDetail() {
       .eq("id", id)
       .single();
 
-    if (error) {
-      errorMessage.value = error.message;
-    } else {
+    if (error) errorMessage.value = error.message;
+    else {
       collection.value = data;
+      collectionPhotos.value = data.collection_photo || [];
     }
 
     loading.value = false;
@@ -127,10 +126,12 @@ function useCollectionDetail() {
   onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleKeydown);
   });
+
   return {
     loading,
     errorMessage,
     collection,
+    collectionPhotos,
     selectedPhotos,
     openModal,
     downloadSelected,

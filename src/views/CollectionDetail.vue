@@ -3,14 +3,16 @@ import { ref, onMounted, onBeforeUnmount } from "vue";
 import DetailHeader from "../components/collectionDetail/DetailHeader.vue";
 import LoadingComponent from "../components/common/LoadingComponent.vue";
 import ErrorMessageComponent from "../components/common/ErrorMessageComponent.vue";
+
 import useCollectionDetail from "../composables/useCollectionDetail";
+import { supabase } from "../lib/supabase";
 
 const {
   loading,
   errorMessage,
   collection,
+  collectionPhotos,
   selectedPhotos,
-  openModal,
   downloadSelected,
   deleteSelected,
   clearSelection,
@@ -18,88 +20,118 @@ const {
   closeModal,
 } = useCollectionDetail();
 
-// Upload modal state
+/* --------------------------------------------
+   Upload Modal State
+---------------------------------------------*/
 const showUploadModal = ref(false);
 const filesToUpload = ref<File[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const openUploadModal = () => {
-  showUploadModal.value = true;
-};
-
+const openUploadModal = () => (showUploadModal.value = true);
 const closeUploadModal = () => {
   filesToUpload.value = [];
   showUploadModal.value = false;
 };
 
-// Drag and drop handlers
+/* --------------------------------------------
+   Drag + Click Select
+---------------------------------------------*/
 const handleDragOver = (e: DragEvent) => e.preventDefault();
+
 const handleDrop = (e: DragEvent) => {
   e.preventDefault();
   if (e.dataTransfer?.files) {
     filesToUpload.value.push(...Array.from(e.dataTransfer.files));
   }
 };
+
 const handleFilesSelected = (e: Event) => {
-  const target = e.target as HTMLInputElement;
-  if (target.files) {
-    filesToUpload.value.push(...Array.from(target.files));
+  const input = e.target as HTMLInputElement;
+  if (input.files) {
+    filesToUpload.value.push(...Array.from(input.files));
   }
 };
 
-// Upload files to Supabase Storage
+/* --------------------------------------------
+   UPLOAD FILES (FINAL CLEAN VERSION)
+---------------------------------------------*/
+// uploadFiles.ts
 const uploadFiles = async () => {
-  // if (!filesToUpload.value.length) return;
+  if (!filesToUpload.value.length) return;
+  if (!collection.value) return;
 
-  // const uploadedPhotos = [];
-  // for (const file of filesToUpload.value) {
-  //   const filePath = `${collection.value.id}/${file.name}`;
-  //   const { error: uploadError } = await supabase.storage
-  //     .from("collection-photos")
-  //     .upload(filePath, file, { upsert: true });
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  if (!userId) return;
 
-  //   if (uploadError) {
-  //     console.error("Upload error:", uploadError.message);
-  //     continue;
-  //   }
+  for (const file of filesToUpload.value) {
+    try {
+      // 1️⃣ Upload file to Supabase storage
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { data: storageUploadData, error: storageUploadError } =
+        await supabase.storage
+          .from("foterio")
+          .upload(`user-${userId}/${fileName}`, file);
 
-  //   // Insert record in DB
-  //   const { data, error: dbError } = await supabase
-  //     .from("collection_photo")
-  //     .insert([
-  //       {
-  //         collection_id: collection.value.id,
-  //         storage_path: supabase.storage
-  //           .from("collection-photos")
-  //           .getPublicUrl(filePath).data.publicUrl,
-  //         caption: "",
-  //         s3_key: file.name,
-  //       },
-  //     ])
-  //     .select()
-  //     .single();
+      if (storageUploadError) {
+        console.error("Storage upload error:", storageUploadError);
+        continue;
+      }
 
-  //   if (dbError) {
-  //     console.error("DB insert error:", dbError.message);
-  //     continue;
-  //   }
+      const fullPath = storageUploadData?.fullPath || "";
 
-  //   uploadedPhotos.push(data);
-  // }
+      // 2️⃣ Get public URL
+      const { data: urlData } = supabase.storage
+        .from("foterio")
+        .getPublicUrl(fullPath.replace("foterio/", ""));
+      const publicUrl = urlData.publicUrl;
 
-  // // Update UI
-  // collection.value.collection_photo.push(...uploadedPhotos);
-  // closeUploadModal();
-  console.log("TODO: upload logic");
+      // 3️⃣ Insert row in DB
+      const { data: rowInsertData, error: rowInsertError } = await supabase
+        .from("collection_photo")
+        .insert([
+          {
+            collection_id: collection.value.id,
+            storage_path: fullPath,
+            public_url: publicUrl,
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select();
+
+      if (rowInsertError) {
+        console.error("DB insert error:", rowInsertError);
+        continue;
+      }
+
+      // ✅ Add new photo to the reactive array
+      if (rowInsertData && rowInsertData.length > 0) {
+        collectionPhotos.value.push(rowInsertData[0]);
+      }
+    } catch (err) {
+      console.error("Upload failed for", file.name, err);
+    }
+  }
+
+  // 4️⃣ Clear modal state
+  filesToUpload.value = [];
+  showUploadModal.value = false;
 };
 
-// Close on ESC
+/* --------------------------------------------
+   Close on ESC
+---------------------------------------------*/
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === "Escape") closeModal();
 };
 
-onMounted(() => window.addEventListener("keydown", handleKeydown));
-onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
+onMounted(async () => {
+  window.addEventListener("keydown", handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <template>
@@ -111,8 +143,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
     />
 
     <div v-else class="flex gap-6">
-      <!-- LEFT: Details + Add Photos -->
-      <div class="w-1/4 space-y-4">
+      <!-- LEFT SIDE -->
+      <div class="w-1/2 space-y-4">
         <DetailHeader :collection="collection" />
 
         <button
@@ -123,16 +155,16 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
         </button>
       </div>
 
-      <!-- RIGHT: Gallery -->
+      <!-- RIGHT: GALLERY -->
       <div class="w-3/4">
         <h2 class="text-xl font-semibold mb-4">Photos</h2>
 
         <div
-          v-if="collection.collection_photo.length > 0"
+          v-if="collectionPhotos.length > 0"
           class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
         >
           <div
-            v-for="photo in collection.collection_photo"
+            v-for="photo in collectionPhotos"
             :key="photo.id"
             class="relative border rounded overflow-hidden bg-white shadow-sm"
           >
@@ -145,16 +177,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
             />
 
             <img
-              :src="photo.storage_path"
-              class="w-full h-40 object-cover cursor-pointer"
-              @click="openModal(photo.storage_path)"
+              :src="photo.public_url"
+              style="max-width: 200px; max-height: 200px"
             />
-
-            <div class="p-2">
-              <p class="text-gray-700 text-sm font-medium">
-                {{ photo.caption }}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -208,7 +233,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
       </button>
     </div>
 
-    <!-- ADD PHOTOS MODAL -->
+    <!-- UPLOAD MODAL -->
     <div
       v-if="showUploadModal"
       class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"
@@ -243,7 +268,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKeydown));
           <p class="text-gray-700 font-medium">Files to upload:</p>
           <ul class="list-disc list-inside">
             <li v-for="file in filesToUpload" :key="file.name">
-              <span class="text-gray-700">{{ file.name }}</span>
+              {{ file.name }}
             </li>
           </ul>
         </div>

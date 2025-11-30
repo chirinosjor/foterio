@@ -10,7 +10,6 @@ export interface CollectionPhoto {
   id: string;
   collection_id: number;
   storage_path: string;
-  caption?: string;
   created_at: string;
-  s3_key: string;
+  public_url: string;
 }
