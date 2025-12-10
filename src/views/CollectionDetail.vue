@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
 
         <div v-if="filesToUpload.length" class="mb-4">
           <p class="text-gray-700 font-medium">Files to upload:</p>
-          <ul class="list-disc list-inside">
+          <ul class="list-disc list-inside max-h-32 overflow-y-auto pr-2">
             <li v-for="file in filesToUpload" :key="file.name">
               <span class="text-gray-700">{{ file.name }}</span>
             </li>
