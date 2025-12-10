@@ -71,7 +71,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-4">
+  <div>
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-800">Gallery</h1>
       <button

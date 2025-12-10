@@ -135,16 +135,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-6">
+  <div>
     <LoadingComponent v-if="loading" />
     <ErrorMessageComponent
       v-else-if="errorMessage"
       :error-message="errorMessage"
     />
 
-    <div v-else class="flex gap-6">
+    <div v-else class="flex flex-col lg:flex-row gap-6">
       <!-- LEFT SIDE -->
-      <div class="w-1/2 space-y-4">
+      <div class="w-full lg:w-1/3 space-y-4">
         <DetailHeader :collection="collection" />
 
         <button
@@ -156,12 +156,12 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- RIGHT: GALLERY -->
-      <div class="w-3/4">
+      <div class="w-full lg:w-2/3">
         <h2 class="text-xl font-semibold mb-4">Photos</h2>
 
         <div
           v-if="collectionPhotos.length > 0"
-          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4"
         >
           <div
             v-for="photo in collectionPhotos"
@@ -191,25 +191,27 @@ onBeforeUnmount(() => {
     <!-- ACTION PANEL -->
     <div
       v-if="selectedPhotos.length > 0"
-      class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl border rounded-xl px-6 py-3 flex items-center gap-6 z-50"
+      class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl border rounded-xl px-4 py-3 flex flex-wrap justify-center items-center gap-4 z-50 w-[90%] sm:w-auto"
     >
-      <span class="text-gray-700 font-medium"
+      <span class="text-gray-700 font-medium whitespace-nowrap"
         >{{ selectedPhotos.length }} selected</span
       >
 
-      <button
-        @click="downloadSelected"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        Download
-      </button>
+      <div class="flex gap-2">
+        <button
+          @click="downloadSelected"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+        >
+          Download
+        </button>
 
-      <button
-        @click="deleteSelected"
-        class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-      >
-        Delete
-      </button>
+        <button
+          @click="deleteSelected"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+        >
+          Delete
+        </button>
+      </div>
 
       <button
         @click="clearSelection"
